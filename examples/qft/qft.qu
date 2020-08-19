@@ -1,0 +1,38 @@
+operation cu1(lambda: double, a: qubit, b: qubit): unit {
+    U1(a, lambda/toDouble(2));
+    CZ(a, b);
+    U1(b, -lambda/toDouble(2));
+    CZ(a, b);
+    U1(b, lambda/toDouble(2));
+}
+
+operation qft(number: int, q: qubit[]): unit {
+    int i;
+    i = 0;
+    while(i<number) {
+        int j;
+        j = i;
+        while(j>0) {
+            cu1(3.14/toDouble(2*j), q[i], q[i-j]);
+            j=j-1;
+        }
+        H(q[i]);
+        i=i+1;
+    }
+}
+
+operation qft4(): bool[4] {
+    bool[4] output;
+    using(q : qubit[4]) {
+        init_all(q);
+        X(q[0], 180.0);
+        X(q[2], 180.0);
+        qft(4, q);
+        output = meas_all(q);
+    }
+    return output;
+}
+
+operation main():unit{
+	 qft4();
+}

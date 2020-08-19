@@ -1,0 +1,54 @@
+package  config.json
+
+{
+	"init": {
+	       "duration": 200000,
+	       "type": "init"
+	    },
+    "Rx90": {
+        "duration": 20,
+        "matrix": [ [0.0,0.0], [1.0,0.0], [1.0,0.0], [0.0,0.0] ],
+        "type": "single-qubit",
+        "eqasm": "rx90"
+    },
+    "X": {
+        "duration": 20,
+        "matrix": [ [0.0,0.0], [1.0,0.0], [1.0,0.0], [0.0,0.0] ],
+        "type": "single-qubit",
+        "eqasm": "rx180"
+    },
+    "Y": {
+        "duration": 20,
+        "matrix": [ [0.0,0.0], [0.0,-1.0], [0.0,1.0], [0.0,0.0] ],
+        "type": "single-qubit",
+        "eqasm": "ry180"
+    },
+    "Z": {
+        "duration": 20,
+        "matrix": [ [1.0,0.0], [0.0,0.0], [0.0,0.0], [-1.0,0.0] ],
+        "type": "single-qubit",
+        "eqasm": "rz180"
+    },
+	 "H": {
+	        "duration": 40,
+	        "matrix": [[1.0,0.0], [1.0,0.0], [1.0,0.0], [-1.0,0.0]] ,
+	        "type": "single-qubit",
+	        "eqasm": "H"
+	   	   },
+	 "CZ": {
+	        "duration": 40,
+	        "matrix": [
+	            [1.0,0.0], [0.0,0.0], [0.0,0.0], [0.0,0.0],
+	            [0.0,0.0], [1.0,0.0], [0.0,0.0], [0.0,0.0],
+	            [0.0,0.0], [0.0,0.0], [1.0,0.0], [0.0,0.0],
+	            [0.0,0.0], [0.0,0.0], [0.0,0.0], [-1.0,0.0]
+	        ],
+	        "type": "two-qubit",
+	        "eqasm": "CZ"
+	       },
+	  "measure": {
+	        "duration": 600,
+	        "type":"meas",
+	        "eqasm":"MeasZ"
+	       }
+}

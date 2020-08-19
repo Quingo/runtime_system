@@ -1,0 +1,10 @@
+.vscode/
+temp/
+src-gen/
+sim_output/
+__pycache__/
+test_file/
+test_run_qarchsim/
+*.zip
+dm.bin
+create_script.py

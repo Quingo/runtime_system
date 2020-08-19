@@ -1,0 +1,11 @@
+{
+    "console": "info",
+    "counter_registry_logger": "info",
+    "config_logger": "info",
+    "telf_logger": "info",
+    "cache_logger": "info",
+    "MRF_logger": "info",
+    "qsim_logger": "info",
+    "json_logger": "info",
+    "asm_logger": "info"
+}
