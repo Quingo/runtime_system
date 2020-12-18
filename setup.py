@@ -31,5 +31,6 @@ setup(name='qgrtsys',
       author='Xiang Fu',
       author_email='gtaifu@gmail.com',
       packages=['qgrtsys'],
-      install_requires=['quantumsim==0.2.0', 'colorama', 'termcolor']
+      install_requires=['pycactus',
+                        'quantumsim==0.2.0', 'colorama', 'termcolor']
       )

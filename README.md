@@ -15,6 +15,8 @@ The Quingo runtime system.
   - you should install the latest version of [Java Development ToolKit](https://www.oracle.com/technetwork/java/javase/downloads/jdk8-downloads-2133151.html). You may need to add or modify a few environmental  variables as well.
   - If you are using Ubuntu, you can install JDK8 with the following command: `sudo apt-get install openjdk-8-jdk`.
   - After a success installation, you should be able to execute this command: `java -version`.
+- PyCACTUS
+  - Please clone from this [repo](https://github.com/gtaifu/PyCACTUS) and install it.
 
 ## Installation
 Enter the root directory of this project, and simply run either one of the two following commands:
