@@ -4,7 +4,7 @@ import struct
 import qgrtsys.global_config as gc
 from qgrtsys.core.utils import *
 
-logger = get_logger(__name__)
+logger = get_logger((__name__).split('.')[-1])
 logger.setLevel(logging.WARNING)
 
 
@@ -219,13 +219,6 @@ class Data_transfer():
         Args:
             bin_block (binary) : the binary data block returned by the quantum kernel.
         """
-        logger.info("The data block is decode is: ")
-        ps = ''
-        for i, b in enumerate(bin_block):
-            ps += '{:2}, '.format(b)
-            if (i+1) % 8 == 0:
-                ps += '\n'
-        logger.info(ps)
         self.data_block = bin_block
         self.head = 0
 
@@ -240,11 +233,12 @@ class Data_transfer():
 
     def _check_ptr_range(self, head, tail):
         if head < 0:
-            logger.error("Error: found negative pointer ({})!", format(head))
+            raise ValueError(
+                "Error: found negative pointer ({})!", format(head))
 
         if tail > len(self.data_block):
-            logger.error("The pointer ({}) to the data block exceeds the "
-                         "maximum size ({}).".format(tail, len(self.data_block)))
+            raise ValueError("The pointer ({}) to the data block exceeds the "
+                             "maximum size ({}).".format(tail, len(self.data_block)))
 
     def _get_int(self, head):
         """This function read an integer from the data block, and move the
@@ -318,33 +312,16 @@ class Data_transfer():
         for ele_type in type_list:
             ele_value, head = self.conv_qg_bin_to_py_data(ele_type, head)
             value += (ele_value,)
-
         return value, head
 
     def conv_qg_bin_to_py_array(self, type_str, head):
-
-        assert(get_outer_type(type_str) == 'list')
-
-        arr_length, head = self._get_int(head)
-
+        arr_head_offset, newhead = self._get_pointer(head)
+        arr_head = head + arr_head_offset
         ele_type = type_str[:-2]
-
-        resolved_arr = []
-
-        if (get_outer_type(ele_type) != 'list'):
-            for i in range(arr_length):
-                ele, head = self.conv_qg_bin_to_py_data(ele_type, head)
-                resolved_arr.append(ele)
-        else:
-            for i in range(arr_length):
-                sub_arr_head_offset, new_head = self._get_pointer(head)
-                sub_arr_head = head + sub_arr_head_offset
-
-                sub_arr, head = self.conv_qg_bin_to_py_data(
-                    ele_type, sub_arr_head)
-
-                resolved_arr.append(sub_arr)
-
-                head = new_head
-
-        return resolved_arr, head
+        value = []
+        arr_length, arr_head = self._get_int(arr_head)
+        for i in range(arr_length):
+            sub_arr, arr_head = self.conv_qg_bin_to_py_data(ele_type, arr_head)
+            value.append(sub_arr)
+        head = newhead
+        return value, head

@@ -2,8 +2,7 @@ import config.json.*
 import operations.*
 
 operation qrng(): bool {
-    bool a;
-    a = false;
+    bool a = false;
     using(q: qubit) {
         init(q);
         H(q);
@@ -13,8 +12,7 @@ operation qrng(): bool {
 }
 operation gen_ran_seq(N: int): bool[] {
     bool[N] res;
-    int i;
-    i = 0;
+    int i = 0;
     while (i < N) {
         res[i] = qrng();
         i = i + 1;

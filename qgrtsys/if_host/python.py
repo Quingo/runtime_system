@@ -1,11 +1,26 @@
+from logging import log
 from qgrtsys.core.manager import *
 from qgrtsys.core.data_transfer import *
 
 
 class If_Quingo():
-    def __init__(self, **kwargs):
-        self.rsm = Runtime_system_manager(**kwargs)
+    def __init__(self, verbose=False, log_level=logging.WARNING,
+                 backend='PyCACTUS_QuantumSim', **kwargs):
+        self.rsm = Runtime_system_manager(backend=backend, **kwargs)
+        self.set_verbose(verbose)
+        self.set_log_level(log_level)
         self.data_transfer = Data_transfer()
+
+    def set_verbose(self, v):
+        self.verbose = v
+        self.rsm.set_verbose(v)
+
+    def set_log_level(self, log_level):
+        self.log_level = log_level
+        self.rsm.set_log_level(log_level)
+
+    def set_backend(self, backend='PyCACTUS_QuantumSim'):
+        self.rsm.set_backend(backend)
 
     def set_eqasm_filename(self, tmp_eqasm_filename):
         self.rsm.set_eqasm_filename(tmp_eqasm_filename)
@@ -40,3 +55,6 @@ class If_Quingo():
         this function.
         """
         return self.rsm.read_result(start_addr)
+
+
+if_quingo = If_Quingo(backend='pycactus_quantumsim')

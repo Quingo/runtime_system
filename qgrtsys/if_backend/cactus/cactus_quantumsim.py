@@ -4,10 +4,9 @@ import subprocess
 from pathlib import Path
 from qgrtsys.if_backend.if_backend import If_backend
 import qgrtsys.global_config as gc
-import qgrtsys.if_backend.assembler_helpers as asm_helper
 from qgrtsys.core.utils import *
 
-logger = get_logger(__name__)
+logger = get_logger((__name__).split('.')[-1])
 
 
 def format_cmd(cmd):
@@ -17,29 +16,39 @@ def format_cmd(cmd):
         if i == 0:
             formatted_str = line
             continue
-        option, values = line.split(' ', 1)
+        group = line.split(' ', 1)
         formatted_str += '\n'
-        formatted_str += "\t--{:15s} {}".format(option, values)
+        if len(group) == 1:
+            formatted_str += "\t--{:15s}".format(group[0])
+        else:
+            formatted_str += "\t--{:15s} {}".format(
+                group[0], ' '.join(group[1:]))
     return formatted_str
 
 
 class Cactus_quantumsim(If_backend):
     """A simulation backend using CACTUS and QuantumSim."""
 
-    def __init__(self, **kwargs):
-        super().__init__("CACTUS_QuantumSim")
+    def __init__(self, verbose=False, log_level=logging.WARNING, **kwargs):
+        super().__init__("CACTUS_QuantumSim", verbose, log_level)
         self.eqasm_file = None
         self.cactus_dir = gc.qgrtsys_root_dir / "if_backend" / "cactus"
         self.cactus_prog_file_opt = ""
         self.cactus_exe_path = None
         self.ret_file_path = ""
-        self.verbose = kwargs.pop('verbose', False)
-        self.loglevel = kwargs.pop('loglevel', logging.INFO)
-        logger.setLevel(self.loglevel)
+        self.set_verbose(verbose)
+        self.set_log_level(log_level)
         self.config()
 
     def available(self):
         return True
+
+    def set_log_level(self, log_level):
+        self.log_level = log_level
+        logger.setLevel(self.log_level)
+
+    def set_verbose(self, v):
+        self.verbose = v
 
     def config(self, **kwargs):
         """This function performs various configuration for the simulator."""
@@ -57,7 +66,7 @@ class Cactus_quantumsim(If_backend):
                 "Currently, CACTUS can only run on Windows and Linux.")
 
         self.config_dict = {
-            "num_sim_cycles":   ['--run',           1000000],
+            "num_sim_cycles":   ['--run',           2000000],
             "vliw_width":       ['--vliw_width',    2],
             "num_qubit":        ['--q_num',         7],
             "data_memory_size": ['--dm_size',       '1M'],
@@ -69,6 +78,7 @@ class Cactus_quantumsim(If_backend):
                                                                    gc.shared_mem_size)]
         }
 
+    def cmd_config(self):
         self.opt_str = ""
         for key, value in self.config_dict.items():
             if value[0][2:] in ["log_level", "gate_config", "tp_config"]:
@@ -78,6 +88,9 @@ class Cactus_quantumsim(If_backend):
                 opt_value_str = "{}".format(value[1])
 
             self.opt_str += " {} {}".format(value[0], opt_value_str)
+
+        if self.verbose:
+            self.opt_str += ' --debug_on'  # put this option on to enable cactus output
 
     def upload_program(self, prog_fn, is_binary=False):
         """
@@ -96,12 +109,19 @@ class Cactus_quantumsim(If_backend):
             self.cactus_prog_file_opt = ' --bin "{}"'.format(prog_fn)
 
         else:
-            wait_deco_prog_fn = prog_dir / ("deco_" + prog_fn.name)
-            asm_helper.hack_meas_fmr_bug(prog_fn, wait_deco_prog_fn)
-            self.cactus_prog_file_opt = ' --asm "{}"'.format(wait_deco_prog_fn)
+            self.cactus_prog_file_opt = ' --asm "{}"'.format(prog_fn)
 
         self.ret_file_path = prog_dir / ("res_" + prog_fn.stem + '.bin')
         self.cactus_ret_file_opt = ' --file "{}"'.format(self.ret_file_path)
+
+        qubit_num = self.count_qubits(prog_fn)
+
+        if(qubit_num > self.config_dict['num_qubit'][1]):
+            self.config_dict['num_qubit'][1] = qubit_num
+            quingo_msg('The number of qubits in use is ' + str(qubit_num))
+
+        self.cmd_config()
+        return True
 
     def execute(self):
         cactus_cmd = str(self.cactus_exe_path) + self.cactus_prog_file_opt +\
@@ -123,7 +143,7 @@ class Cactus_quantumsim(If_backend):
 
         if ret_value.stderr != '':
             quingo_err("Error message from cactus:")
-            quingo_err("\t", ret_value.stderr)
+            quingo_err("\t" + ret_value.stderr)
 
         if (ret_value.returncode != 0):  # failure
             return False
@@ -134,5 +154,4 @@ class Cactus_quantumsim(If_backend):
         """This function tries to read the computation result of the quantum kernel.
         """
         with open(self.ret_file_path, 'rb') as f:
-            result = f.read()
-            return(result)
+            return(f.read())

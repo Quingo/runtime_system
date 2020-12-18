@@ -16,12 +16,16 @@ def quingo_msg(arg, **kwargs):
     print(tc.colored(arg, 'green'), **kwargs)
 
 
+def quingo_warning(arg, **kwargs):
+    print(tc.colored(arg, 'yellow'), **kwargs)
+
+
 def quingo_err(arg, **kwargs):
     print(tc.colored(arg, 'red'), **kwargs)
 
 
 FORMATTER = logging.Formatter(
-    "%(asctime)s — %(name)s — %(levelname)s — %(message)s")
+    "%(asctime)s %(name)s %(lineno)d(%(levelname)s): %(message)s", datefmt='%H:%M:%S')
 # LOG_FILE = "my_app.log"
 
 

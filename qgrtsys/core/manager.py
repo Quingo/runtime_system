@@ -1,16 +1,16 @@
-
+from logging import log
+import qgrtsys.global_config as gc
+import qgrtsys.core.data_transfer as dt
 import os
 import re
 import platform
 import subprocess
 import logging
 from pathlib import Path
-from qgrtsys.core.utils import quingo_err, quingo_msg, get_logger
+from qgrtsys.core.utils import quingo_err, quingo_msg, quingo_warning, get_logger
 from qgrtsys.if_backend.cactus.cactus_quantumsim import Cactus_quantumsim
-import qgrtsys.core.data_transfer as dt
-import qgrtsys.global_config as gc
-
-logger = get_logger(__name__)
+from qgrtsys.if_backend.pycactus.pycactus_quantumsim import Pycactus_quantumsim
+logger = get_logger((__name__).split('.')[-1])
 
 
 def remove_comment(qu_src):
@@ -45,26 +45,31 @@ def get_ret_type(qg_filename: str, qg_func_name: str):
 
 
 class Runtime_system_manager():
-    def __init__(self, **kwargs):
+    def __init__(self, verbose=False, log_level=logging.WARNING,
+                 backend='PyCACTUS_QuantumSim', **kwargs):
 
         # possible options for the compilers are:
         #   - "xtext": Xtext-based prototype compiler
         #   - "llvm": LLVM-based compiler, not ready yet.
         self.compiler = kwargs.pop('compiler', "xtext")
 
-        self.loglevel = kwargs.pop('loglevel', logging.INFO)
-        logger.setLevel(self.loglevel)
+        # define verbose & log_level here which will be used by backends
+        self.verbose = verbose
+        self.log_level = log_level
+
+        self.supp_backends = {'cactus_quantumsim': Cactus_quantumsim,
+                              'pycactus_quantumsim': Pycactus_quantumsim}
+        # CACTUS_QuantumSim, PyCACTUS_QuantumSim
+        self.set_backend(backend)
+
+        self.set_verbose(verbose)
+        self.set_log_level(log_level)
 
         self.main_func_fn = None  # pathlib.Path
 
         self.eqasm_file_path = None  # pathlib.Path
 
         self.data_block = ""
-
-        self.verbose = kwargs.pop('verbose', False)
-
-        self.set_backend(kwargs.pop('backend', "cactus_quantumsim"))
-
         self.xtext_option = {
             "eqasm_filename": self.set_eqasm_filename,
             "shared_addr": self.set_shared_addr,
@@ -72,6 +77,10 @@ class Runtime_system_manager():
             "dynamic_addr": self.set_dynamic_addr,
             "max_unroll": self.set_max_unroll
         }
+
+        # Set to False upon `call_quingo`.
+        # After the backend returns successfully, it is set back to True.
+        self.success_on_last_execution = False
 
         self.eqasm_filename = ""
         self.shared_addr = 0
@@ -83,7 +92,20 @@ class Runtime_system_manager():
             logger.debug("Python version: {}".format(
                 platform.python_version()))
 
-    def set_backend(self, backend: str):
+    def set_execution_status(self, value):
+        assert(isinstance(value, bool))
+        self.success_on_last_execution = value
+
+    def set_log_level(self, log_level):
+        self.log_level = log_level
+        logger.setLevel(self.log_level)
+        self.backend.set_log_level(log_level)
+
+    def set_verbose(self, v):
+        self.verbose = v
+        self.backend.set_verbose(v)
+
+    def set_backend(self, backend_name: str):
         """This function set the backend to execute the quantum application.
         Allowed backend includes:
 
@@ -91,13 +113,16 @@ class Runtime_system_manager():
         - Simulator: QArchSim + a qubit state simulator (like QuantumSim)
         """
 
-        allowed_backends = ["cactus_quantumsim", "CCLight"]
+        backend_name = backend_name.lower()
 
-        if (backend == "cactus_quantumsim"):
-            self.backend = Cactus_quantumsim(verbose=self.verbose)
-        else:
-            logger.error("Undefined backend is used.")
-            raise NotImplementedError
+        if backend_name not in self.supp_backends:
+            logger.error("The chosen backend ({}) is currently not "
+                         "supported by qgrtsys.".format(backend_name))
+
+            raise ValueError('Undefined backend ({})'.format(backend_name))
+
+        self.backend = self.supp_backends[backend_name](verbose=self.verbose,
+                                                        log_level=self.log_level)
 
     def set_eqasm_filename(self, tmp_eqasm_filename):
         self.eqasm_filename = tmp_eqasm_filename
@@ -116,12 +141,18 @@ class Runtime_system_manager():
 
     def call_quingo(self, qg_filename: str, qg_func_name: str, xtext_options, *args):
         """This function triggers the main process."""
+        self.set_execution_status(False)
         self.parse_xtext_options(qg_func_name, xtext_options)
-        return self.main_process(qg_filename, qg_func_name, *args)
+        success = self.main_process(qg_filename, qg_func_name, *args)
+        self.set_execution_status(success)
+
+        return success
 
     def parse_xtext_options(self, qg_func_name, xtext_options):
         for key in xtext_options:
             self.xtext_option[key](xtext_options[key])
+
+        # TODO: it is unclear why it is done in the following way.
         if(self.eqasm_filename == ""):
             self.eqasm_filename = qg_func_name + ".eqasm"
 
@@ -140,8 +171,8 @@ class Runtime_system_manager():
         # the basename of qg_filename without extension
         self.qg_stem = resolved_qg_filename.stem
 
-        self.main_func_fn = (self.build_dir / ('main_' +
-                                               self.qg_stem)).with_suffix(gc.quingo_suffix)
+        self.main_func_fn = (self.build_dir / ('main_' + self.qg_stem)).with_suffix(
+            gc.quingo_suffix)
 
         self.eqasm_file_path = self.main_func_fn.with_suffix(gc.eqasm_suffix)
 
@@ -187,9 +218,6 @@ class Runtime_system_manager():
         logger.debug("The eQASM file has been generated at: {}".format(
             self.eqasm_file_path))
 
-        if self.verbose:
-            quingo_msg("Start execution ... ")
-
         if not self.execute():  # execute the eQASM file
             quingo_err("Execution failed. Abort.")
             return False
@@ -208,7 +236,18 @@ class Runtime_system_manager():
             raise EnvironmentError(
                 "The backend{} is not available.".format(self.backend.name()))
 
-        self.backend.upload_program(self.eqasm_file_path, False)
+        if self.verbose:
+            quingo_msg("Uploading the program to the backend {}...".format(
+                self.backend.name()))
+
+        if not self.backend.upload_program(self.eqasm_file_path):
+            quingo_err("Failed to upload the program to the backend {}.".format(
+                self.backend.name()))
+            return False
+
+        if self.verbose:
+            quingo_msg("Start execution with {}... ".format(self.backend.name()))
+
         return self.backend.execute()
 
     def get_imported_qu_fns(self, prj_dir):
@@ -364,6 +403,10 @@ class Runtime_system_manager():
         return func_str
 
     def read_result(self, start_addr):
+        if self.success_on_last_execution is False:
+            quingo_warning('Last execution fails and no result is read back.')
+            return None
+
         data_trans = dt.Data_transfer()
         data_trans.set_data_block(self.result)
         pydata = data_trans.bin_to_pydata(self.ret_type, start_addr)

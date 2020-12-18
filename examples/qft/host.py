@@ -1,6 +1,5 @@
-from qgrtsys.if_host.python import *
+from qgrtsys import if_quingo
 import time
-if_quingo = If_Quingo()
 
 if_quingo.call_quingo("qft.qu", 'qft4')
 res = if_quingo.read_result()

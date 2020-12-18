@@ -66,7 +66,6 @@ class interface_quantumsim:
         self.error_on = True
 
     def init_dm(self, num_qubit):
-
         self.num_qubit = num_qubit
 
         qubit_names = []
@@ -170,8 +169,8 @@ class interface_quantumsim:
         # self.apply_all_pending()
 
         log.debug("The full density matrix before applying measurement:")
-        #log.debug(self.sdm.full_dm.to_array().round(
-            #round_precision), end="\n\n")
+        # log.debug(self.sdm.full_dm.to_array().round(
+        # round_precision), end="\n\n")
         log.debug(self.sdm.full_dm.to_array().round(
             round_precision))
 
