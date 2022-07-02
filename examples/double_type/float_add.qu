@@ -1,6 +1,0 @@
-operation test_add(a: double, b: double): double
-{
-	double result =  a + b;
-
-	return result;
-}
